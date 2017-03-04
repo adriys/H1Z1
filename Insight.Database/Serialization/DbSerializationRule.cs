@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
@@ -24,7 +25,7 @@ namespace Insight.Database
 		/// <summary>
 		/// The cached serializers.
 		/// </summary>
-		private static Dictionary<Type, IDbObjectSerializer> _cachedSerializers = new Dictionary<Type, IDbObjectSerializer>();
+		private static ConcurrentDictionary<Type, IDbObjectSerializer> _cachedSerializers = new ConcurrentDictionary<Type, IDbObjectSerializer>();
 
 		/// <summary>
 		/// The default serialization handler.
@@ -167,14 +168,7 @@ namespace Insight.Database
 					if (prop.Serializer == null)
 						throw new InvalidOperationException(String.Format(CultureInfo.InvariantCulture, "No custom serializer was provided for {0} on type {1}", prop.Name, prop.Type));
 
-					IDbObjectSerializer serializer;
-					if (!_cachedSerializers.TryGetValue(prop.Serializer, out serializer))
-					{
-						serializer = (IDbObjectSerializer)System.Activator.CreateInstance(prop.Serializer);
-						_cachedSerializers.Add(prop.Serializer, serializer);
-					}
-
-					return serializer;
+					return _cachedSerializers.GetOrAdd(prop.Serializer, (serializer) => (IDbObjectSerializer)System.Activator.CreateInstance(serializer));
 			}
 		}
 		#endregion

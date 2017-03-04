@@ -73,15 +73,8 @@ namespace Insight.Database.Structure
 			if (roots == null) throw new ArgumentNullException("roots");
 			if (children == null) throw new ArgumentNullException("children");
 
- 			// function to convert ids to the parent type
-			Func<object, TId> convertID;
-			if (_idType != typeof(object))
-				convertID = (object id) => (TId)Convert.ChangeType(id, _idType, CultureInfo.InvariantCulture);
-			else
-				convertID = (object id) => (TId)id;
-			
 			// convert the children into lists by their parent ID
-			Dictionary<TId, List<TChild>> lists = children.ToDictionary(g => convertID(g.Key), g => g.ToList());
+			Dictionary<TId, List<TChild>> lists = children.ToDictionary(g => g.Key, g => g.ToList());
 
 			// fill in each parent
 			foreach (var root in roots)

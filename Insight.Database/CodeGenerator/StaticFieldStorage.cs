@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -23,6 +24,11 @@ namespace Insight.Database.CodeGenerator
 		private static ModuleBuilder _dynamicModule;
 
 		/// <summary>
+		/// Temporary variable to cache whether a debugger is attached. Remove in v6.
+		/// </summary>
+		private static bool? _isDebuggerAttached;
+
+		/// <summary>
 		/// The cache of the static fields.
 		/// </summary>
 		private static Dictionary<Tuple<ModuleBuilder, object>, FieldInfo> _fields = new Dictionary<Tuple<ModuleBuilder, object>, FieldInfo>();
@@ -35,6 +41,11 @@ namespace Insight.Database.CodeGenerator
 		{
 			// create a shared assembly for all of the static fields to live in
 			AssemblyName an = Assembly.GetExecutingAssembly().GetName();
+
+			// TODO remove debugger condition for v6
+			if (DebuggerIsAttached())  // Make the dynamic assembly have a unique name.  Fixes debugger issue #224.  
+				an.Name = an.Name + ".DynamicAssembly";
+
 			AssemblyBuilder ab = AppDomain.CurrentDomain.DefineDynamicAssembly(an, AssemblyBuilderAccess.Run);
 			_dynamicModule = ab.DefineDynamicModule(an.Name);
 		}
@@ -58,6 +69,19 @@ namespace Insight.Database.CodeGenerator
 			}
 
 			il.Emit(OpCodes.Ldsfld, field);
+		}
+
+		/// <summary>
+		/// Indicates if the debugger is attached.  Only evaluated once so that the answer is stable
+		/// Temporary method, remove in v6
+		/// </summary>
+		/// <returns>True if there is a debugger attached.</returns>
+		internal static bool DebuggerIsAttached()
+		{
+			if (!_isDebuggerAttached.HasValue)
+				_isDebuggerAttached = Debugger.IsAttached;
+
+			return _isDebuggerAttached.Value;
 		}
 
 		/// <summary>
