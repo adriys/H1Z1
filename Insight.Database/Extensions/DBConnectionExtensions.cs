@@ -51,10 +51,8 @@ namespace Insight.Database
 		/// <param name="connection">The connection to open and return.</param>
 		/// <param name="cancellationToken">The cancellation token to use for the operation.</param>
 		/// <returns>The opened connection.</returns>
-		public static Task<T> OpenConnectionAsync<T>(this T connection, CancellationToken? cancellationToken = null) where T : IDbConnection
+		public static Task<T> OpenConnectionAsync<T>(this T connection, CancellationToken cancellationToken = default(CancellationToken)) where T : IDbConnection
 		{
-			CancellationToken ct = cancellationToken ?? CancellationToken.None;
-
 #if NODBASYNC
 			connection.Open();
 			return Helpers.FromResult(connection);
@@ -69,7 +67,7 @@ namespace Insight.Database
 			}
 
 			// DbConnection supports OpenAsync, but it doesn't return self
-			return dbConnection.OpenAsync(ct)
+			return dbConnection.OpenAsync(cancellationToken)
 					.ContinueWith(t => connection, TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion);
 #endif
 		}
@@ -96,7 +94,7 @@ namespace Insight.Database
 		/// <param name="cancellationToken">The cancellation token to use for the operation.</param>
 		/// <returns>A task returning the connection and interface when the connection is opened.</returns>
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-		public static Task<T> OpenAsAsync<T>(this IDbConnection connection, CancellationToken? cancellationToken = null) where T : class, IDbConnection
+		public static Task<T> OpenAsAsync<T>(this IDbConnection connection, CancellationToken cancellationToken = default(CancellationToken)) where T : class, IDbConnection
 		{
 			return OpenConnectionAsync(connection, cancellationToken)
 					.ContinueWith(
@@ -167,12 +165,10 @@ namespace Insight.Database
 		/// <param name="cancellationToken">The cancellation token to use for the operation.</param>
 		/// <returns>A task returning a connection when the connection has been opened.</returns>
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-		public static Task<DbConnectionWrapper> OpenWithTransactionAsync(this IDbConnection connection, CancellationToken? cancellationToken = null)
+		public static Task<DbConnectionWrapper> OpenWithTransactionAsync(this IDbConnection connection, CancellationToken cancellationToken = default(CancellationToken))
 		{
-			CancellationToken ct = cancellationToken ?? CancellationToken.None;
-
 			return DbConnectionWrapper.Wrap(connection)
-				.OpenConnectionAsync(ct)
+				.OpenConnectionAsync(cancellationToken)
 				.ContinueWith(
 					t =>
 					{
@@ -201,7 +197,7 @@ namespace Insight.Database
 		/// <param name="cancellationToken">The cancellation token to use for the operation.</param>
 		/// <returns>A task returning a connection when the connection has been opened.</returns>
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
-		public static Task<T> OpenWithTransactionAsAsync<T>(this T connection, CancellationToken? cancellationToken = null) where T : class, IDbConnection, IDbTransaction
+		public static Task<T> OpenWithTransactionAsAsync<T>(this T connection, CancellationToken cancellationToken = default(CancellationToken)) where T : class, IDbConnection, IDbTransaction
 		{
 			// connection is already a T, so just pass it in
 			return OpenWithTransactionAsync((IDbConnection)connection, cancellationToken)
@@ -232,7 +228,7 @@ namespace Insight.Database
 		/// <param name="connection">The connection to open.</param>
 		/// <param name="cancellationToken">The cancellation token to use for the operation.</param>
 		/// <returns>A task returning a connection when the connection has been opened.</returns>
-		public static Task<T> OpenWithTransactionAsAsync<T>(this IDbConnection connection, CancellationToken? cancellationToken = null) where T : class, IDbConnection, IDbTransaction
+		public static Task<T> OpenWithTransactionAsAsync<T>(this IDbConnection connection, CancellationToken cancellationToken = default(CancellationToken)) where T : class, IDbConnection, IDbTransaction
 		{
 			// convert to interface first, then open, so we only get one layer of wrapping
 			return connection.As<T>().OpenWithTransactionAsAsync(cancellationToken);
@@ -1584,7 +1580,8 @@ namespace Insight.Database
 		/// <returns>The result of the command, converted to the given type.</returns>
 		private static T ConvertScalar<T>(IDbCommand cmd, object parameters, object outputParameters, object result)
 		{
-			if (result == null && typeof(T).IsValueType && Nullable.GetUnderlyingType(typeof(T)) == null)
+			if ((result == null || result == DBNull.Value) && 
+				typeof(T).IsValueType && Nullable.GetUnderlyingType(typeof(T)) == null)
 				throw new InvalidOperationException("Recordset returned no rows, but ExecuteScalar is trying to return a non-nullable type.");
 
 			cmd.OutputParameters(parameters, outputParameters);
